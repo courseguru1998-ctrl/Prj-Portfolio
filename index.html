@@ -691,7 +691,6 @@
 
     function update() {
       const p = getProgress();
-      if (ready) video.currentTime = p * duration;
       captions.forEach(cap => {
         const from = parseFloat(cap.dataset.from);
         const to   = parseFloat(cap.dataset.to);
