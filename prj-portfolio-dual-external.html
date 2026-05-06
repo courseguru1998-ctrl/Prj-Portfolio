@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRJ. / Engineering with data.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..125,300..700&family=JetBrains+Mono:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0a0c;
+    --surface:   #13141a;
+    --line:      rgba(232, 234, 237, 0.07);
+    --line-loud: rgba(232, 234, 237, 0.14);
+    --ink:       #e8eaed;
+    --ink-soft:  #a8acb5;
+    --ink-mute:  #6b6f78;
+    --accent:    #00d9ff;
+    --accent-2:  #ff6bcb;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: auto; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Inter", -apple-system, sans-serif;
+    font-weight: 300;
+    line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .display { font-family: "Bricolage Grotesque", sans-serif; font-variation-settings: "opsz" 96, "wdth" 100; }
+  .mono    { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+  .progress {
+    position: fixed; top: 0; left: 0;
+    height: 1px; width: 0%;
+    background: var(--accent);
+    z-index: 100;
+    box-shadow: 0 0 12px var(--accent);
+  }
+
+  .status-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    padding: 16px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem; letter-spacing: 0.1em; color: var(--ink-mute);
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+    background: rgba(10, 10, 12, 0.6);
+    border-bottom: 1px solid var(--line);
+  }
+  .status-bar .dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--accent); border-radius: 50%; margin-right: 8px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .status-bar .left, .status-bar .right { display: flex; gap: 24px; align-items: center; }
+  .status-bar a { color: var(--ink-soft); text-decoration: none; transition: color 0.2s; }
+  .status-bar a:hover { color: var(--accent); }
+
+  /* ============== HERO ============== */
+  .hero {
+    min-height: 100vh;
+    padding: 120px 32px 80px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .hero-meta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-mute);
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+    border-bottom: 1px solid var(--line); padding-bottom: 28px;
+  }
+  .hero-meta strong { display: block; color: var(--ink); font-weight: 400; margin-top: 6px; }
+  .hero h1 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wdth" 100, "wght" 400;
+    font-size: clamp(3rem, 10vw, 9.5rem);
+    line-height: 0.92; letter-spacing: -0.04em;
+    margin: 80px 0 60px;
+    max-width: 18ch;
+  }
+  .hero h1 .accent {
+    font-variation-settings: "opsz" 96, "wdth" 75, "wght" 400;
+    font-style: italic; color: var(--accent);
+  }
+  .hero-foot {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 60px; align-items: end;
+    border-top: 1px solid var(--line); padding-top: 28px;
+  }
+  .hero-foot .lede { font-size: 1rem; color: var(--ink-soft); max-width: 420px; line-height: 1.55; }
+  .hero-foot .availability {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); text-align: center;
+    border: 1px solid var(--accent); padding: 14px 28px;
+  }
+  .hero-foot .scroll-cue {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--ink-mute); text-align: right;
+  }
+  .hero-foot .scroll-cue::before { content: "↓ "; color: var(--accent); }
+
+  /* ============== CINEMATIC SECTIONS (shared mechanics) ============== */
+  .cinematic { position: relative; height: 400vh; background: #000; }
+  .stage {
+    position: sticky; top: 0;
+    height: 100vh; width: 100%; overflow: hidden; background: #000;
+  }
+  .stage video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; object-fit: cover; z-index: 1;
+  }
+  .stage::after {
+    content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.55) 100%);
+  }
+  .stage.loading::before {
+    content: attr(data-loading);
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-mute);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem; letter-spacing: 0.3em; z-index: 3;
+  }
+
+  .caption {
+    position: absolute; z-index: 3;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+  .caption.active { opacity: 1; transform: translateY(0); }
+
+  /* Caption variants */
+  .cap-tl {
+    top: 14%; left: 32px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .cap-tl .num { color: var(--accent); margin-right: 12px; }
+  .cap-tl .label {
+    display: block; margin-top: 14px;
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wght" 400;
+    font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+    line-height: 1; letter-spacing: -0.02em;
+    text-transform: none; color: var(--ink);
+    max-width: 12ch;
+  }
+
+  .cap-center {
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) translateY(8px);
+    text-align: center; width: min(90%, 820px);
+  }
+  .cap-center.active { transform: translate(-50%, -50%); }
+  .cap-center .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 28px;
+  }
+  .cap-center h2 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wdth" 100, "wght" 400;
+    font-size: clamp(2rem, 5.5vw, 4.5rem);
+    line-height: 1.05; letter-spacing: -0.03em;
+  }
+  .cap-center h2 .accent {
+    font-variation-settings: "opsz" 96, "wdth" 75, "wght" 400;
+    font-style: italic; color: var(--accent);
+  }
+
+  .cap-br {
+    bottom: 14%; right: 32px;
+    transform: translateY(8px);
+    max-width: 380px; text-align: right;
+  }
+  .cap-br.active { transform: translateY(0); }
+  .cap-br .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 18px;
+  }
+  .cap-br h3 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wght" 400;
+    font-size: clamp(1.4rem, 2.6vw, 2.1rem);
+    line-height: 1.15; letter-spacing: -0.02em;
+  }
+
+  .cap-bottom {
+    bottom: 12%; left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    text-align: center;
+  }
+  .cap-bottom.active { transform: translateX(-50%); }
+  .cap-bottom .stat {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wdth" 100, "wght" 500;
+    font-size: clamp(2.6rem, 7vw, 5.5rem);
+    line-height: 0.92; letter-spacing: -0.03em;
+  }
+  .cap-bottom .stat .accent { color: var(--accent); }
+  .cap-bottom .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--ink-soft); margin-top: 18px;
+  }
+
+  /* Section divider header that introduces each cinematic section */
+  .act-marker {
+    position: absolute; top: 32px; left: 50%;
+    transform: translateX(-50%); z-index: 4;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem; letter-spacing: 0.4em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .act-marker .accent { color: var(--accent); }
+
+  /* ============== MANIFESTO ============== */
+  .manifesto {
+    padding: 180px 32px 140px;
+    max-width: 1280px; margin: 0 auto;
+  }
+  .manifesto-grid {
+    display: grid; grid-template-columns: 200px 1fr;
+    gap: 80px; align-items: start;
+  }
+  .manifesto-grid .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-mute); padding-top: 18px;
+    border-top: 1px solid var(--accent);
+  }
+  .manifesto h2 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wdth" 100, "wght" 300;
+    font-size: clamp(1.8rem, 4vw, 3.2rem);
+    line-height: 1.2; letter-spacing: -0.02em;
+    color: var(--ink); max-width: 24ch;
+  }
+  .manifesto h2 .accent {
+    color: var(--accent); font-style: italic;
+    font-variation-settings: "opsz" 96, "wdth" 75, "wght" 400;
+  }
+
+  /* ============== SERVICES ============== */
+  .services { border-top: 1px solid var(--line-loud); border-bottom: 1px solid var(--line-loud); }
+  .services-head {
+    padding: 40px 32px;
+    display: grid; grid-template-columns: 200px 1fr; gap: 80px;
+    border-bottom: 1px solid var(--line);
+  }
+  .services-head .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .services-head h3 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wght" 400;
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    letter-spacing: -0.02em; color: var(--ink-soft);
+  }
+  .services-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .service {
+    padding: 60px 32px 80px;
+    border-right: 1px solid var(--line);
+    transition: background 0.3s; position: relative;
+  }
+  .service:last-child { border-right: none; }
+  .service:hover { background: var(--surface); }
+  .service .num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem; letter-spacing: 0.2em; color: var(--accent);
+    margin-bottom: 32px;
+  }
+  .service h4 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wght" 400;
+    font-size: 1.5rem; line-height: 1.15; letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .service p { font-size: 0.9rem; color: var(--ink-soft); line-height: 1.6; margin-bottom: 24px; }
+  .service ul {
+    list-style: none;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; color: var(--ink-mute);
+  }
+  .service ul li {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .service ul li::before { content: "→ "; color: var(--accent); }
+
+  /* ============== WORK ============== */
+  .work { padding: 180px 32px 140px; max-width: 1280px; margin: 0 auto; }
+  .work-head {
+    display: grid; grid-template-columns: 200px 1fr;
+    gap: 80px; margin-bottom: 80px;
+  }
+  .work-head .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-mute); padding-top: 18px;
+    border-top: 1px solid var(--accent);
+  }
+  .work-head h3 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wdth" 100, "wght" 300;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    letter-spacing: -0.02em; max-width: 20ch;
+  }
+  .case {
+    display: grid; grid-template-columns: 200px 1fr 200px;
+    gap: 80px; padding: 48px 0;
+    border-top: 1px solid var(--line); align-items: start;
+    transition: padding 0.3s;
+  }
+  .case:last-child { border-bottom: 1px solid var(--line); }
+  .case:hover { padding-left: 16px; padding-right: 16px; }
+  .case .num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; letter-spacing: 0.18em; color: var(--accent);
+  }
+  .case .body h4 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wght" 400;
+    font-size: clamp(1.4rem, 2.6vw, 2rem); margin-bottom: 16px; letter-spacing: -0.02em;
+  }
+  .case .body p { color: var(--ink-soft); font-size: 0.95rem; max-width: 60ch; line-height: 1.6; }
+  .case .meta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem; color: var(--ink-mute); text-align: right; line-height: 1.8;
+  }
+  .case .meta span { color: var(--ink); }
+
+  /* ============== CTA ============== */
+  .cta { padding: 200px 32px 140px; text-align: center; border-top: 1px solid var(--line-loud); }
+  .cta .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 32px;
+  }
+  .cta h2 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-variation-settings: "opsz" 96, "wdth" 100, "wght" 400;
+    font-size: clamp(2.5rem, 8vw, 7rem);
+    line-height: 0.95; letter-spacing: -0.04em;
+    margin: 0 auto 60px; max-width: 16ch;
+  }
+  .cta h2 .accent {
+    font-variation-settings: "opsz" 96, "wdth" 75, "wght" 400;
+    font-style: italic; color: var(--accent);
+  }
+  .cta-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .cta-btn {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem; letter-spacing: 0.2em; text-transform: uppercase;
+    padding: 18px 36px;
+    border: 1px solid var(--accent); color: var(--accent);
+    background: transparent; text-decoration: none;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .cta-btn:hover {
+    background: var(--accent); color: var(--bg);
+    box-shadow: 0 0 24px rgba(0, 217, 255, 0.4);
+  }
+  .cta-btn.primary { background: var(--accent); color: var(--bg); }
+  .cta-btn.primary:hover { background: transparent; color: var(--accent); }
+
+  /* ============== FOOTER ============== */
+  footer {
+    padding: 32px;
+    border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  footer .center { text-align: center; }
+  footer .right { text-align: right; }
+
+  @media (max-width: 900px) {
+    .services-grid { grid-template-columns: repeat(2, 1fr); }
+    .service:nth-child(2) { border-right: none; }
+    .service:nth-child(1), .service:nth-child(2) { border-bottom: 1px solid var(--line); }
+    .work-head, .services-head, .manifesto-grid { grid-template-columns: 1fr; gap: 24px; }
+    .case { grid-template-columns: 1fr; gap: 16px; }
+    .case .meta { text-align: left; }
+  }
+  @media (max-width: 600px) {
+    .status-bar { padding: 12px 20px; font-size: 0.65rem; }
+    .status-bar .right { display: none; }
+    .hero { padding: 100px 20px 60px; }
+    .hero-meta { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .hero-foot { grid-template-columns: 1fr; gap: 24px; }
+    .hero-foot .scroll-cue { text-align: left; }
+    .services-grid { grid-template-columns: 1fr; }
+    .service { border-right: none; border-bottom: 1px solid var(--line); }
+    .cap-tl, .cap-br { left: 20px; right: 20px; max-width: none; text-align: left; }
+    .work, .manifesto, .cta { padding-left: 20px; padding-right: 20px; }
+    footer { grid-template-columns: 1fr; gap: 8px; text-align: left; }
+    footer .center, footer .right { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="status-bar">
+  <div class="left">
+    <span><span class="dot"></span>SYSTEM ONLINE</span>
+    <span>PRJ.</span>
+  </div>
+  <div class="right">
+    <a href="#work">Work</a>
+    <a href="#services">Services</a>
+    <a href="#contact">Contact</a>
+    <span>BLR / IST</span>
+  </div>
+</div>
+
+<!-- ===================== HERO ===================== -->
+<section class="hero">
+  <div class="hero-meta">
+    <div><span>Role</span><strong>Developer + Data Analyst</strong></div>
+    <div><span>Stack</span><strong>SQL Server · JS · Python</strong></div>
+    <div><span>Based</span><strong>Bangalore, India</strong></div>
+    <div><span>Index</span><strong>v.2026.05</strong></div>
+  </div>
+
+  <h1 class="display">
+    I build <span class="accent">quiet systems</span><br>
+    that move data<br>
+    where it needs to go.
+  </h1>
+
+  <div class="hero-foot">
+    <p class="lede">
+      Stored procedures that don't break at 3 AM. Web apps that load fast and explain themselves. Pipelines that turn raw rows into something a person can actually decide from. Available for project work and short engagements.
+    </p>
+    <div class="availability mono">Booking · Q3 2026</div>
+    <div class="scroll-cue">Scroll the page</div>
+  </div>
+</section>
+
+<!-- ============== ACT 1 — BUILD (video 1) ============== -->
+<section class="cinematic" data-cinematic id="act-1">
+  <div class="stage loading" data-loading="ACT 01 / LOADING">
+    <div class="act-marker">ACT <span class="accent">01</span> &nbsp;/&nbsp; THE BUILD</div>
+    <video data-film
+           preload="auto" muted playsinline webkit-playsinline>
+      <source src="build.mp4" type="video/mp4">
+    </video>
+
+    <div class="caption cap-tl" data-from="0.04" data-to="0.30">
+      <span class="num mono">01 / STACK</span>
+      <span>The chosen tools, locked in.</span>
+      <span class="label display">It starts<br>with a system.</span>
+    </div>
+
+    <div class="caption cap-center" data-from="0.36" data-to="0.62">
+      <div class="label mono">02 / Compose</div>
+      <h2 class="display">
+        Each piece <span class="accent">earns its place.</span> Nothing decorative, nothing bolted on.
+      </h2>
+    </div>
+
+    <div class="caption cap-br" data-from="0.68" data-to="0.96">
+      <div class="label mono">03 / Ship</div>
+      <h3 class="display">
+        It runs every morning — whether anyone's watching or not.
+      </h3>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MANIFESTO ===================== -->
+<section class="manifesto">
+  <div class="manifesto-grid">
+    <div class="label">— Approach</div>
+    <h2 class="display">
+      Most software is louder than it needs to be. The work I take on tends to be <span class="accent">specific, scoped, and quietly important</span> — the kind that runs every morning whether anyone's watching.
+    </h2>
+  </div>
+</section>
+
+<!-- ===================== SERVICES ===================== -->
+<section class="services" id="services">
+  <div class="services-head">
+    <div class="label mono">— What I do</div>
+    <h3 class="display">Four things, done thoroughly. No agencies, no juniors — you talk to the person writing the code.</h3>
+  </div>
+  <div class="services-grid">
+    <div class="service">
+      <div class="num">01</div>
+      <h4 class="display">SQL & stored procedures</h4>
+      <p>Backend logic that institutions actually rely on. Schema design, query optimisation, batch jobs that finish on time.</p>
+      <ul>
+        <li>SQL Server, T-SQL</li>
+        <li>Reporting pipelines</li>
+        <li>Data validation & audits</li>
+      </ul>
+    </div>
+    <div class="service">
+      <div class="num">02</div>
+      <h4 class="display">Web applications</h4>
+      <p>Sites and small applications for businesses that have outgrown the templated builders. Built lean, designed to last.</p>
+      <ul>
+        <li>HTML / CSS / JS</li>
+        <li>Lightweight CMS work</li>
+        <li>Forms, integrations, deploys</li>
+      </ul>
+    </div>
+    <div class="service">
+      <div class="num">03</div>
+      <h4 class="display">Data pipelines</h4>
+      <p>From messy CSVs and live databases into something a dashboard can read. ETL where it belongs — out of sight.</p>
+      <ul>
+        <li>Python · pandas</li>
+        <li>Scheduled ingestion</li>
+        <li>Cleaning & enrichment</li>
+      </ul>
+    </div>
+    <div class="service">
+      <div class="num">04</div>
+      <h4 class="display">Reports & dashboards</h4>
+      <p>The numbers your team actually checks each Monday — formatted so the story shows up before the spreadsheet does.</p>
+      <ul>
+        <li>Reporting automation</li>
+        <li>Visual summaries</li>
+        <li>One-page executive views</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============== ACT 2 — READ (video 2) ============== -->
+<section class="cinematic" data-cinematic id="act-2">
+  <div class="stage loading" data-loading="ACT 02 / LOADING">
+    <div class="act-marker">ACT <span class="accent">02</span> &nbsp;/&nbsp; THE READ</div>
+    <video data-film
+           preload="auto" muted playsinline webkit-playsinline>
+      <source src="data.mp4" type="video/mp4">
+    </video>
+
+    <div class="caption cap-tl" data-from="0.04" data-to="0.28">
+      <span class="num mono">04 / NUMBERS</span>
+      <span>Months of rows. Quarters of motion.</span>
+      <span class="label display">Then comes<br>the second job.</span>
+    </div>
+
+    <div class="caption cap-center" data-from="0.34" data-to="0.62">
+      <div class="label mono">05 / Decode</div>
+      <h2 class="display">
+        Spikes have <span class="accent">stories.</span> Dips do too. Both deserve a careful look.
+      </h2>
+    </div>
+
+    <div class="caption cap-bottom" data-from="0.70" data-to="0.99">
+      <div class="stat display">
+        <span class="accent">→</span> One sentence<br>
+        worth saying.
+      </div>
+      <div class="label mono">06 / OUTPUT — that's the whole job.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== WORK ===================== -->
+<section class="work" id="work">
+  <div class="work-head">
+    <div class="label mono">— Recent work</div>
+    <h3 class="display">A representative slice — names withheld, problems described.</h3>
+  </div>
+
+  <div class="case">
+    <div class="num">CASE 01 / 2026</div>
+    <div class="body">
+      <h4 class="display">Examination hall allocation, automated</h4>
+      <p>Replaced a manual roll-call assignment with a stored procedure that handles regular plus backlog students, room capacity, and seating constraints in a single pass. Audit-friendly, reversible, traceable.</p>
+    </div>
+    <div class="meta">
+      <span>Stack</span><br>
+      SQL Server · T-SQL<br><br>
+      <span>Domain</span><br>
+      Higher Education
+    </div>
+  </div>
+
+  <div class="case">
+    <div class="num">CASE 02 / 2026</div>
+    <div class="body">
+      <h4 class="display">Grade-wise result reporting</h4>
+      <p>Tracked down NULL propagation across semester and batch joins that was producing silently incomplete results. Restructured the procedure for correctness first, performance second — and got both.</p>
+    </div>
+    <div class="meta">
+      <span>Stack</span><br>
+      SQL Server · T-SQL<br><br>
+      <span>Domain</span><br>
+      Academic systems
+    </div>
+  </div>
+
+  <div class="case">
+    <div class="num">CASE 03 / 2025</div>
+    <div class="body">
+      <h4 class="display">Local business websites</h4>
+      <p>Lightweight, hand-built sites for Bangalore neighbourhood businesses moving off rented platforms. Self-hostable, no subscriptions, ownership of the asset.</p>
+    </div>
+    <div class="meta">
+      <span>Stack</span><br>
+      HTML · CSS · JS<br><br>
+      <span>Domain</span><br>
+      Small business
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CTA ===================== -->
+<section class="cta" id="contact">
+  <div class="label">— Get in touch</div>
+  <h2 class="display">
+    Have a problem<br>
+    that needs <span class="accent">solving cleanly?</span>
+  </h2>
+  <div class="cta-buttons">
+    <a href="mailto:hello@example.com" class="cta-btn primary">→ Send a brief</a>
+    <a href="#" class="cta-btn">Schedule a call</a>
+  </div>
+</section>
+
+<footer>
+  <span>© PRJ. MMXXVI</span>
+  <span class="center">Bangalore · IST</span>
+  <span class="right">Cinematic build · v2 / dual</span>
+</footer>
+
+<script>
+  // ==============================================================
+  //  Multi-cinematic scroll engine
+  //  Each <section.cinematic> runs an independent scrub for its
+  //  own <video data-film>. Captions are tied to scroll progress
+  //  within that specific section (0..1).
+  // ==============================================================
+
+  const progressBar = document.getElementById('progress');
+
+  function setupCinematic(section) {
+    const stage    = section.querySelector('.stage');
+    const video    = section.querySelector('[data-film]');
+    const captions = section.querySelectorAll('.caption');
+
+    let duration = 0;
+    let ready    = false;
+
+    const onReady = () => {
+      if (ready) return;
+      duration = video.duration;
+      ready = true;
+      stage.classList.remove('loading');
+      update();
+    };
+    video.addEventListener('loadedmetadata', onReady);
+    video.addEventListener('canplay', onReady);
+    video.addEventListener('error', () => {
+      stage.classList.remove('loading');
+      stage.innerHTML = '<div style="color:#00d9ff;padding:48px;font-family:monospace;text-align:center;width:100%">VIDEO LOAD FAILED</div>';
+    });
+
+    function getProgress() {
+      const rect  = section.getBoundingClientRect();
+      const total = section.offsetHeight - window.innerHeight;
+      const raw   = -rect.top / total;
+      return Math.min(Math.max(raw, 0), 1);
+    }
+
+    function update() {
+      const p = getProgress();
+      if (ready) video.currentTime = p * duration;
+      captions.forEach(cap => {
+        const from = parseFloat(cap.dataset.from);
+        const to   = parseFloat(cap.dataset.to);
+        cap.classList.toggle('active', p >= from && p <= to);
+      });
+    }
+
+    section._update = update;
+    video.load();
+  }
+
+  // Set up every cinematic section on the page
+  document.querySelectorAll('[data-cinematic]').forEach(setupCinematic);
+
+  // Global progress bar tracks total page scroll
+  function updateGlobalProgress() {
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    const p = window.scrollY / total;
+    progressBar.style.width = (p * 100) + '%';
+  }
+
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        document.querySelectorAll('[data-cinematic]').forEach(s => s._update && s._update());
+        updateGlobalProgress();
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+</script>
+</body>
+</html>
